@@ -1,4 +1,4 @@
-# Vela — Premium Windows 11 Media Player
+# Lumen — Premium Windows 11 Media Player
 
 A minimal, cinematic desktop media player for Windows 11 built with an Electron frontend decoupled from a `libmpv` + `FFmpeg` + `libass` + `libplacebo` playback engine.
 
