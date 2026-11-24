@@ -1,0 +1,67 @@
+name: Build Vela Windows Installer
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download mpv & FFmpeg Windows x64 binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "resources/mpv" | Out-Null
+          $ProgressPreference = 'SilentlyContinue'
+
+          # Fetch latest shinchiro/mpv-winbuild-cmake x86_64 release asset
+          $mpvRel = Invoke-RestMethod -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest"
+          $mpvAsset = $mpvRel.assets | Where-Object { $_.name -match '^mpv-x86_64-.*\.7z$' -and $_.name -notmatch 'v3' } | Select-Object -First 1
+          if ($mpvAsset) {
+            Invoke-WebRequest -Uri $mpvAsset.browser_download_url -OutFile "mpv.7z"
+            7z x mpv.7z -o"mpv_tmp" -y | Out-Null
+            Get-ChildItem -Path "mpv_tmp" -Filter "mpv.exe" -Recurse | Copy-Item -Destination "resources/mpv/mpv.exe" -Force
+            Get-ChildItem -Path "mpv_tmp" -Filter "*.dll" -Recurse | Copy-Item -Destination "resources/mpv/" -Force
+            Remove-Item -Recurse -Force "mpv.7z", "mpv_tmp"
+          }
+
+          # Fetch FFmpeg essentials (ffprobe.exe)
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_tmp" -Force
+          Get-ChildItem -Path "ffmpeg_tmp" -Filter "ffprobe.exe" -Recurse | Copy-Item -Destination "resources/mpv/ffprobe.exe" -Force
+          Remove-Item -Recurse -Force "ffmpeg.zip", "ffmpeg_tmp"
+
+      - name: Install dependencies & build Windows .exe
+        run: |
+          npm install
+          npm run build:win
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vela-Windows-x64
+          path: |
+            dist/*.exe
+            dist/win-unpacked/**
+
+      - name: Publish GitHub Release (on tag or manual run)
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name == 'main' && format('v1.0.{0}', github.run_number) || github.ref_name }}
+          name: Vela Media Player ${{ github.ref_name == 'main' && format('v1.0.{0}', github.run_number) || github.ref_name }}
+          files: dist/*.exe
+          generate_release_notes: true
