@@ -1115,7 +1115,7 @@ jobs:
                 ],
                 win: {
                   icon: 'build/icon.ico',
-                  signAndEditExecutable: Boolean(process.env.WIN_CSC_LINK),
+                  signExecutable: Boolean(process.env.WIN_CSC_LINK),
                   requestedExecutionLevel: 'asInvoker',
                   target: [{ target: 'nsis', arch: ['x64'] }],
                   artifactName: 'Lumen-Setup-' + process.env.VER + '-x64.exe'
@@ -1178,7 +1178,7 @@ jobs:
           npm install --no-audit --no-fund
           npm audit --omit=dev
           npm run build:win
-          pwsh -Command "Get-FileHash dist/Lumen-Setup-*.exe -Algorithm SHA256 | ForEach-Object { '{0}  {1}' -f $_.Hash.ToLower(), (Split-Path $_.Path -Leaf) } | Set-Content dist/SHA256SUMS.txt" 
+          node -e "const fs=require('fs'),c=require('crypto'),p=require('path');const lines=fs.readdirSync('dist').filter(f=>f.endsWith('.exe')).map(f=>c.createHash('sha256').update(fs.readFileSync(p.join('dist',f))).digest('hex')+'  '+f);fs.writeFileSync('dist/SHA256SUMS.txt',lines.join('\n')+'\n');"
 
       - name: Publish direct Windows .exe Installer to GitHub Releases
         uses: softprops/action-gh-release@v2
