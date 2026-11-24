@@ -574,7 +574,7 @@ jobs:
                   signAndEditExecutable: Boolean(process.env.WIN_CSC_LINK),
                   requestedExecutionLevel: 'asInvoker',
                   target: [{ target: 'nsis', arch: ['x64'] }],
-                  artifactName: 'Vela-Setup-' + '${version}' + '-x64.' + '${ext}'
+                  artifactName: 'Vela-Setup-' + process.env.VER + '-x64.exe'
                 },
                 nsis: {
                   oneClick: false,
