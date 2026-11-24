@@ -3,10 +3,11 @@
   "productName": "Vela",
   "version": "1.0.0",
   "description": "Minimal, cinematic Windows 11 desktop media player powered by libmpv, FFmpeg, libass, and libplacebo.",
+  "author": "Vela",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win nsis portable"
+    "build:win": "electron-builder --win nsis portable --x64 --publish never"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -34,6 +35,7 @@
       }
     ],
     "win": {
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
@@ -46,47 +48,6 @@
           "arch": [
             "x64"
           ]
-        }
-      ],
-      "fileAssociations": [
-        {
-          "ext": [
-            "mp4",
-            "mkv",
-            "avi",
-            "mov",
-            "webm",
-            "wmv",
-            "flv",
-            "mpeg",
-            "mpg",
-            "ts",
-            "m2ts",
-            "3gp",
-            "vob",
-            "ogv"
-          ],
-          "name": "Vela Video",
-          "role": "Viewer"
-        },
-        {
-          "ext": [
-            "mp3",
-            "aac",
-            "flac",
-            "wav",
-            "wma",
-            "alac",
-            "ogg",
-            "opus",
-            "aiff",
-            "m4a",
-            "ape",
-            "ac3",
-            "dts"
-          ],
-          "name": "Vela Audio",
-          "role": "Viewer"
         }
       ]
     },
