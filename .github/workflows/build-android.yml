@@ -8,8 +8,6 @@ name: Build & Release Lumen Android APK
 on:
   push:
     branches: [ main ]
-    paths:
-      - '.github/workflows/build-android.yml'
   workflow_dispatch:
 
 permissions:
@@ -807,3 +805,4 @@ jobs:
             - **Native Android PiP & Open With**: Supports Android Picture-in-Picture, File Manager "Open With → Lumen", 6 animated subtitle styles, VLC-style resume, Playlists, A-B Loop, Color Adjustments, and Low-End Device Lite Mode.
           files: Lumen-Android-v*.apk
           generate_release_notes: true
+          make_latest: true
