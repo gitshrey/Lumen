@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>Lumen Video Player 3.0</h1>
+<h1>Lumen Video Player</h1>
 
 <p><strong>A fast, offline Liquid Glass video & lossless audio player for Windows 11.</strong></p>
 
