@@ -7,8 +7,7 @@ name: Build & Release Lumen Windows Installer
 on:
   push:
     branches: [ main ]
-    
-      workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
   contents: write
