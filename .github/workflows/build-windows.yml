@@ -7,6 +7,8 @@ name: Build & Release Lumen Windows Installer
 on:
   push:
     branches: [ main ]
+    paths:
+  - '.github/workflows/build-windows.yml'
   workflow_dispatch:
 
 permissions:
