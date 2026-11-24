@@ -12,9 +12,22 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify required project files exist
+        shell: pwsh
+        run: |
+          $required = @("package.json", "electron/main.js", "electron/preload.js", "src/index.html")
+          foreach ($f in $required) {
+            if (-not (Test-Path $f)) {
+              Write-Error "Missing required file: $f. Check that your folder paths match the repository layout."
+              exit 1
+            }
+          }
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,26 +36,47 @@ jobs:
 
       - name: Download mpv & FFmpeg Windows x64 binaries
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           New-Item -ItemType Directory -Force -Path "resources/mpv" | Out-Null
           $ProgressPreference = 'SilentlyContinue'
-
-          # Fetch latest shinchiro/mpv-winbuild-cmake x86_64 release asset
-          $mpvRel = Invoke-RestMethod -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest"
-          $mpvAsset = $mpvRel.assets | Where-Object { $_.name -match '^mpv-x86_64-.*\.7z$' -and $_.name -notmatch 'v3' } | Select-Object -First 1
-          if ($mpvAsset) {
-            Invoke-WebRequest -Uri $mpvAsset.browser_download_url -OutFile "mpv.7z"
-            7z x mpv.7z -o"mpv_tmp" -y | Out-Null
-            Get-ChildItem -Path "mpv_tmp" -Filter "mpv.exe" -Recurse | Copy-Item -Destination "resources/mpv/mpv.exe" -Force
-            Get-ChildItem -Path "mpv_tmp" -Filter "*.dll" -Recurse | Copy-Item -Destination "resources/mpv/" -Force
-            Remove-Item -Recurse -Force "mpv.7z", "mpv_tmp"
+          $headers = @{
+            "User-Agent" = "vela-media-player-ci"
+            "Authorization" = "Bearer $env:GH_TOKEN"
           }
 
-          # Fetch FFmpeg essentials (ffprobe.exe)
-          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
-          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_tmp" -Force
-          Get-ChildItem -Path "ffmpeg_tmp" -Filter "ffprobe.exe" -Recurse | Copy-Item -Destination "resources/mpv/ffprobe.exe" -Force
-          Remove-Item -Recurse -Force "ffmpeg.zip", "ffmpeg_tmp"
+          # 1. Fetch mpv.exe (authenticated GitHub API call to avoid 403 rate limits)
+          try {
+            $mpvRel = Invoke-RestMethod -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest" -Headers $headers
+            $mpvAsset = $mpvRel.assets | Where-Object { $_.name -match '^mpv-x86_64-.*\.7z$' -and $_.name -notmatch 'v3' } | Select-Object -First 1
+            if ($mpvAsset) {
+              Write-Host "Downloading $($mpvAsset.name)..."
+              Invoke-WebRequest -Uri $mpvAsset.browser_download_url -OutFile "mpv.7z"
+              7z x mpv.7z -o"mpv_tmp" -y | Out-Null
+              $mpvExe = Get-ChildItem -Path "mpv_tmp" -Filter "mpv.exe" -Recurse | Select-Object -First 1
+              if ($mpvExe) { Copy-Item $mpvExe.FullName -Destination "resources/mpv/mpv.exe" -Force }
+              Get-ChildItem -Path "mpv_tmp" -Filter "*.dll" -Recurse | ForEach-Object {
+                Copy-Item $_.FullName -Destination (Join-Path "resources/mpv" $_.Name) -Force
+              }
+              Remove-Item -Recurse -Force "mpv.7z", "mpv_tmp" -ErrorAction SilentlyContinue
+            }
+          } catch {
+            Write-Warning "mpv download warning: $_"
+          }
+
+          # 2. Fetch ffprobe.exe
+          try {
+            Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
+            Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_tmp" -Force
+            $ffprobe = Get-ChildItem -Path "ffmpeg_tmp" -Filter "ffprobe.exe" -Recurse | Select-Object -First 1
+            if ($ffprobe) { Copy-Item $ffprobe.FullName -Destination "resources/mpv/ffprobe.exe" -Force }
+            Remove-Item -Recurse -Force "ffmpeg.zip", "ffmpeg_tmp" -ErrorAction SilentlyContinue
+          } catch {
+            Write-Warning "ffprobe download warning: $_"
+          }
+
+          Get-ChildItem "resources/mpv"
 
       - name: Install dependencies & build Windows .exe
         run: |
@@ -53,9 +87,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Vela-Windows-x64
-          path: |
-            dist/*.exe
-            dist/win-unpacked/**
+          path: dist/*.exe
 
       - name: Publish GitHub Release (on tag or manual run)
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
